@@ -1,29 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'currency_descriptions.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = ColorScheme.fromSeed(
-      seedColor: Colors.blue,
+    final ColorScheme colorScheme = ColorScheme.fromSwatch(
+      primarySwatch: Colors.blue,
       brightness: Brightness.dark,
+    ).copyWith(
+      background: Colors.grey[900],
     );
 
     return MaterialApp(
-      title: 'Currency Converter',
+      title: 'Conversor de Moedas',
       theme: ThemeData(
         colorScheme: colorScheme,
-        useMaterial3: true,
         textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Colors.white),
-          bodyLarge: TextStyle(color: Colors.white),
+          bodyText1: TextStyle(color: Colors.white),
+          bodyText2: TextStyle(color: Colors.white),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
@@ -43,8 +45,8 @@ class MyApp extends StatelessWidget {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blueAccent,
-            foregroundColor: Colors.white,
+            primary: Colors.blueAccent,
+            onPrimary: Colors.white,
             textStyle: const TextStyle(fontSize: 18),
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
             shape: RoundedRectangleBorder(
@@ -59,7 +61,7 @@ class MyApp extends StatelessWidget {
 }
 
 class CurrencyConverterPage extends StatefulWidget {
-  const CurrencyConverterPage({super.key});
+  const CurrencyConverterPage({Key? key}) : super(key: key);
 
   @override
   _CurrencyConverterPageState createState() => _CurrencyConverterPageState();
@@ -67,16 +69,18 @@ class CurrencyConverterPage extends StatefulWidget {
 
 class _CurrencyConverterPageState extends State<CurrencyConverterPage> {
   final _amountController = TextEditingController();
-  final _currencyCodeInputController = TextEditingController();
-  final _currencyCodeOutputController = TextEditingController();
   double? _convertedValue;
   bool _isLoading = false;
   String? _outputCurrencyCode;
+  String _currencyInput = 'BRL';
+  String _currencyOutput = 'USD';
+  final List<String> _currencies =
+      currencyDescriptions.keys.toList(); // Utiliza as chaves do mapa
+  final Map<String, String> _currencyDescriptions =
+      currencyDescriptions; // Utiliza o mapa de descrições
 
   Future<void> _convertCurrency() async {
     final amount = double.tryParse(_amountController.text);
-    final currencyInput = _currencyCodeInputController.text;
-    final currencyOutput = _currencyCodeOutputController.text;
 
     if (amount == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -91,13 +95,13 @@ class _CurrencyConverterPageState extends State<CurrencyConverterPage> {
 
     try {
       final response = await http.get(Uri.parse(
-          'https://open.er-api.com/v6/latest/$currencyInput')); // Usando ExchangeRate-API
+          'https://open.er-api.com/v6/latest/$_currencyInput')); // Usando ExchangeRate-API
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final rate = data['rates'][currencyOutput];
+        final rate = data['rates'][_currencyOutput];
         setState(() {
           _convertedValue = amount * rate;
-          _outputCurrencyCode = currencyOutput;
+          _outputCurrencyCode = _currencyOutput;
         });
       } else {
         throw Exception('Falha ao carregar a taxa de câmbio.');
@@ -117,7 +121,7 @@ class _CurrencyConverterPageState extends State<CurrencyConverterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Currency Converter'),
+        title: const Text('Conversor de Moedas'),
       ),
       body: SingleChildScrollView(
         child: Center(
@@ -126,33 +130,107 @@ class _CurrencyConverterPageState extends State<CurrencyConverterPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
+                const Text(
+                  'Digite o valor e selecione as moedas para conversão:',
+                  style: TextStyle(fontSize: 13, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
                 TextField(
                   controller: _amountController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Digite o valor',
+                  decoration: InputDecoration(
+                    labelText: 'Valor',
+                    hintText: 'Digite o valor a ser convertido',
+                    prefixIcon:
+                        Icon(Icons.monetization_on, color: Colors.blueAccent),
                   ),
                   style: const TextStyle(color: Colors.white),
                 ),
                 const SizedBox(height: 20),
-                TextField(
-                  controller: _currencyCodeInputController,
-                  keyboardType: TextInputType.text,
-                  decoration: const InputDecoration(
-                    labelText: 'Moeda de entrada (Ex: BRL ou USD)',
+                Center(
+                  child: Container(
+                    width: 300,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Moeda de Entrada',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
+                        const Text(
+                          'Escolha a moeda que você possui',
+                          style: TextStyle(fontSize: 14, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButton<String>(
+                          value: _currencyInput,
+                          items: _currencies.map((String currency) {
+                            return DropdownMenuItem<String>(
+                              value: currency,
+                              child: Text(currency),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _currencyInput = newValue!;
+                            });
+                          },
+                          dropdownColor: Colors.grey[850],
+                          style: const TextStyle(color: Colors.white),
+                          isExpanded: true,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _currencyDescriptions[_currencyInput] ?? '',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
                   ),
-                  style: const TextStyle(color: Colors.white),
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _currencyCodeOutputController,
-                  keyboardType: TextInputType.text,
-                  decoration: const InputDecoration(
-                    labelText: 'Moeda de saída (Ex: PLN ou EUR)',
+                const SizedBox(height: 30),
+                Center(
+                  child: Container(
+                    width: 300,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Moeda de Saída',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
+                        const Text(
+                          'Escolha a moeda para a qual deseja converter',
+                          style: TextStyle(fontSize: 14, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButton<String>(
+                          value: _currencyOutput,
+                          items: _currencies.map((String currency) {
+                            return DropdownMenuItem<String>(
+                              value: currency,
+                              child: Text(currency),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _currencyOutput = newValue!;
+                            });
+                          },
+                          dropdownColor: Colors.grey[850],
+                          style: const TextStyle(color: Colors.white),
+                          isExpanded: true,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _currencyDescriptions[_currencyOutput] ?? '',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
                   ),
-                  style: const TextStyle(color: Colors.white),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 30),
                 ElevatedButton(
                   onPressed: _convertCurrency,
                   child: _isLoading
